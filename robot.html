@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
     <head>
-        <title>Flappy Bird AI</title>
+        <title>Neuroevolution Battlebots!</title>
         <script>
 // Neural networks
 class Layer {
@@ -49,7 +49,7 @@ class Layer {
         );
         for (let i = 0; i < this.parameters.length; i++) {
             mutated.parameters[i] = this.parameters[i] + 0;
-            if (Math.random() > 0.95) {
+            if (Math.random() > 0.90) {
                 mutated.parameters[i] = Math.random()*8-4;
             }
         }
@@ -126,17 +126,156 @@ class Network {
         </script>
     </head>
     <body>
+        <h3 style="font-family: Courier New;">Neuroevolution Battlebots!</h3>
         <h3 style="font-family: Courier New;" id="generation">Generation 1</h3>
         <canvas id="canvas"></canvas><br/>
         <script>
 // Define some stuff
+function get_distance(a, b, c, d) {
+    return Math.sqrt((c-a)*(c-a) + (d-b)*(d-b));
+}
+class Robot {
+    constructor(network, x, y, direction) {
+        this.network = network;
+        this.x = x;
+        this.y = y;
+        this.vx = 0;
+        this.vy = 0;
+        this.direction = direction;
+        this.mem1 = 0;
+        this.mem2 = 0;
+        // Ranges from 20 to 80
+        this.radius = 20;
+    }
+    move_self(other) {
+        // Other is included for network inputs
+        const [forward, inflate, mem1, mem2] = this.network.propagate([
+            (other.x-this.x)*this.direction/400,
+            (other.y-this.y)/400,
+            (400 - this.y - this.radius) / 400,
+            other.radius/100,
+            this.mem1, this.mem2
+        ]);
+        this.mem1 = Math.tanh(mem1);
+        this.mem2 = Math.tanh(mem2);
+        const radius = Math.max(-1.0, Math.min(1.0, inflate)) * 30 + 50;
+        this.radius = 0.75 * this.radius + 0.25 * radius;
+        this.vx += Math.max(-1.0, Math.min(1.0, forward)) * 0.5 * this.direction;
+        this.vx *= 0.99;
+        this.vy *= 0.99;
+        this.vy += 1;
+        if (this.y > 400 - this.radius) {
+            const overlap = this.y - 400 + this.radius;
+            this.vy -= overlap * 0.1;
+        }
+        this.x += this.vx;
+        this.y += this.vy;
+    }
+    collision_point(other) {
+        const diff_x = other.x - this.x;
+        const diff_y = other.y - this.y;
+        const dist = Math.sqrt(diff_x * diff_x + diff_y * diff_y);
+        return [this.x + this.radius * diff_x / dist, this.y + this.radius * diff_y / dist];
+    }
+    static physics(a, b) {
+        // Process collisions between robots
+        const distance = get_distance(a.x, a.y, b.x, b.y);
+        if (distance < a.radius + b.radius) {
+            const edge_a = a.collision_point(b);
+            const edge_b = b.collision_point(a);
+            const midpoint_x = (edge_a[0] + edge_b[0]) * 0.5;
+            const midpoint_y = (edge_a[1] + edge_b[1]) * 0.5;
+            const overlap = get_distance(edge_a[0], edge_a[1], midpoint_x, midpoint_y);
+            const dir_x = (b.x-a.x)/distance;
+            const dir_y = (b.y-a.y)/distance;
+            a.vx -= dir_x*a.radius*0.2;
+            a.vy -= dir_y*a.radius*0.2;
+            b.vx += dir_x*b.radius*0.2;
+            b.vy += dir_y*b.radius*0.2;
+        }
+        // Move individually
+        a.move_self(b);
+        b.move_self(a);
+    }
+}
+function reset_robots() {
+    a = new Robot(network_a, 0, 200, 1);
+    b = new Robot(network_b, 400, 200, -1);
+    generation++;
+    document.querySelector("#generation").innerHTML = "Generation " + generation;
+}
+function circle(x, y, r) {
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, 2 * Math.PI);
+    ctx.fill();
+}
+window.addEventListener("keydown", event => {
+    if (event.key - 0 == event.key && event.key.length === 1) {
+        const speed = event.key - 0;
+        sim_speed = [
+            0,
+            1,
+            2,
+            3,
+            4,
+            8,
+            16,
+            24,
+            32,
+            64
+        ][speed];
+    }
+});
 // Setup
+let sim_speed = 1;
 let generation = 1;
 const canvas = document.querySelector("#canvas");
-canvas.width = 400;
+let ctx = canvas.getContext("2d");
+canvas.width = 600;
 canvas.height = 400;
+let network_a = Network.random([6, 8, 8, 4]);
+let network_b = Network.random([6, 8, 8, 4]);
+let a = new Robot(network_a, 0, 200, 1);
+let b = new Robot(network_b, 400, 200, -1);
+let timer = 300;
 // Draw
 window.setInterval(() => {
+    for (let _step = 0; _step < sim_speed; _step++) {
+        timer--;
+        if (timer < 0) {
+            timer = 300;
+            // Winner is whoever is closer to the finish
+            const distance_a = 400 - a.x;
+            const distance_b = b.x;
+            if (distance_a < distance_b) {
+                network_b = network_a.mutate();
+                reset_robots();
+            } else {
+                network_a = network_b.mutate();
+                reset_robots();
+            }
+        }
+        Robot.physics(a, b);
+        if (a.x > 400) {
+            network_b = network_a.mutate();
+            reset_robots();
+        } else if (b.x < 0) {
+            network_a = network_b.mutate();
+            reset_robots();
+        }
+    }
+    ctx.fillStyle = "white";
+    ctx.fillRect(0, 0, 600, 400);
+    ctx.fillStyle = "lightgray";
+    ctx.fillRect(0, 0, 100, 400);
+    ctx.fillRect(500, 0, 100, 400);
+    ctx.fillStyle = "black";
+    ctx.fillRect(0, 380, 600, 20);
+
+    ctx.fillStyle = "red";
+    circle(a.x+100, a.y - 20, a.radius);
+    ctx.fillStyle = "blue";
+    circle(b.x+100, b.y - 20, b.radius);
 }, 33);
         </script>
     </body>
