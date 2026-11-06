@@ -126,8 +126,9 @@ class Network {
         </script>
     </head>
     <body>
-        <h3 style="font-family: Courier New;">Neuroevolution Battlebots!</h3>
+        <h3 style="font-family: Courier New;">Neuroevolution Battlebots</h3>
         <h3 style="font-family: Courier New;" id="generation">Generation 1</h3>
+        <h3 style="font-family: Courier New;" id="round">Round 1</h3>
         <canvas id="canvas"></canvas><br/>
         <script>
 // Define some stuff
@@ -199,10 +200,9 @@ class Robot {
     }
 }
 function reset_robots() {
-    a = new Robot(network_a, 0, 200, 1);
-    b = new Robot(network_b, 400, 200, -1);
-    generation++;
-    document.querySelector("#generation").innerHTML = "Generation " + generation;
+    a = new Robot(network_a, 0, 190 + Math.random() * 20, 1);
+    b = new Robot(network_b, 400, 190 + Math.random() * 20, -1);
+    document.querySelector("#round").innerHTML = "Round " + (a_wins + b_wins + 1);
 }
 function circle(x, y, r) {
     ctx.beginPath();
@@ -216,16 +216,48 @@ window.addEventListener("keydown", event => {
             0,
             1,
             2,
-            3,
             4,
             8,
             16,
-            24,
             32,
-            64
+            128,
+            512,
+            2048
         ][speed];
     }
 });
+function next_generation() {
+    generation++;
+    document.querySelector("#generation").innerHTML = "Generation " + generation;
+}
+function a_won() {
+    a_wins++;
+    if (a_wins + b_wins >= 25) {
+        if (a_wins > b_wins) {
+            network_b = network_a.mutate();
+        } else {
+            network_a = network_b.mutate();
+        }
+        a_wins = 0;
+        b_wins = 0;
+        next_generation();
+    }
+    reset_robots();
+}
+function b_won() {
+    b_wins++;
+    if (a_wins + b_wins >= 25) {
+        if (a_wins > b_wins) {
+            network_b = network_a.mutate();
+        } else {
+            network_a = network_b.mutate();
+        }
+        a_wins = 0;
+        b_wins = 0;
+        next_generation();
+    }
+    reset_robots();
+}
 // Setup
 let sim_speed = 1;
 let generation = 1;
@@ -237,6 +269,8 @@ let network_a = Network.random([6, 8, 8, 4]);
 let network_b = Network.random([6, 8, 8, 4]);
 let a = new Robot(network_a, 0, 200, 1);
 let b = new Robot(network_b, 400, 200, -1);
+let a_wins = 0;
+let b_wins = 0;
 let timer = 300;
 // Draw
 window.setInterval(() => {
@@ -248,20 +282,16 @@ window.setInterval(() => {
             const distance_a = 400 - a.x;
             const distance_b = b.x;
             if (distance_a < distance_b) {
-                network_b = network_a.mutate();
-                reset_robots();
+                a_won();
             } else {
-                network_a = network_b.mutate();
-                reset_robots();
+                b_won();
             }
         }
         Robot.physics(a, b);
         if (a.x > 400) {
-            network_b = network_a.mutate();
-            reset_robots();
+            a_won();
         } else if (b.x < 0) {
-            network_a = network_b.mutate();
-            reset_robots();
+            b_won();
         }
     }
     ctx.fillStyle = "white";
