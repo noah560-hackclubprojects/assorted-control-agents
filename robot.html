@@ -130,6 +130,8 @@ class Network {
         <h3 style="font-family: Courier New;" id="generation">Generation 1</h3>
         <h3 style="font-family: Courier New;" id="round">Round 1</h3>
         <canvas id="canvas"></canvas><br/>
+        <button onclick="saveload_a()">Save/load left robot</button>
+        <button onclick="saveload_b()">Save/load right robot</button>
         <script>
 // Define some stuff
 function get_distance(a, b, c, d) {
@@ -257,6 +259,28 @@ function b_won() {
         next_generation();
     }
     reset_robots();
+}
+function saveload_a() {
+    const saved = network_a.serialize();
+    const response = window.prompt("Copy, cut or replace the save code here:", saved);
+    if (response === saved || response === "" || response === null) {
+        // No change
+    } else {
+        // We need to change the network
+        network_a = Network.load(response);
+        reset_robots();
+    }
+}
+function saveload_b() {
+    const saved = network_b.serialize();
+    const response = window.prompt("Copy, cut or replace the save code here:", saved);
+    if (response === saved || response === "" || response === null) {
+        // No change
+    } else {
+        // We need to change the network
+        network_b = Network.load(response);
+        reset_robots();
+    }
 }
 // Setup
 let sim_speed = 1;
