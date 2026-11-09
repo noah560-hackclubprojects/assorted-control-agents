@@ -134,6 +134,22 @@ class Network {
         <button onclick="saveload_b()">Save/load right robot</button>
         <br/>
         <p>
+            Each robot is a circle that can change its
+            size and propel itself forward. The first
+            one to get to the opposite side of the screen
+            wins the battle, so they need to learn to
+            block each other while going fast so they
+            can win.
+        </p>
+        <p>
+            The robots are trained using a simplified version
+            of neuroevolution, so each generation, the robot
+            that does worst out of the population of 2 robots
+            gets deleted and is replaced with a mutated
+            version of the winner. Each generation is a set
+            of 10 battles.
+        </p>
+        <p>
             Note: The pre-trained model does work,
             but if it seems like it doesn't work well,
             that's because it is better matched for
